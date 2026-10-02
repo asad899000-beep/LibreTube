@@ -20,6 +20,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.allViews
 import androidx.core.view.children
 import androidx.core.view.isNotEmpty
+import androidx.core.view.isVisible
 import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
@@ -155,23 +156,28 @@ class MainActivity : AbstractPlayerHostActivity() {
         }
         // manually update the bottom bar height in the mini player transition
         binding.bottomNav.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            val transition = binding.root.getTransition(R.id.bottom_bar_transition)
-            transition.keyFrameList.forEach { keyFrame ->
-                // These frame positions are hardcoded in activity_main_scene.xml!
-                for (key in keyFrame.getKeyFramesForView(binding.bottomNav.id)) {
-                    if (key.framePosition == 1) key.setValue(
-                        Key.TRANSLATION_Y,
-                        binding.bottomNav.height
-                    )
+            val transition = binding.root.getTransition(R.id.bottom_bar_transition) ?: return@addOnLayoutChangeListener
+            try {
+                val navHeight = binding.bottomNav.height.toFloat()
+                transition.keyFrameList?.forEach { keyFrame ->
+                    // These frame positions are hardcoded in activity_main_scene.xml!
+                    for (key in keyFrame.getKeyFramesForView(binding.bottomNav.id)) {
+                        if (key.framePosition == 1) key.setValue(
+                            Key.TRANSLATION_Y,
+                            navHeight
+                        )
+                    }
+                    for (key in keyFrame.getKeyFramesForView(binding.container.id)) {
+                        if (key.framePosition == 100) key.setValue(
+                            Key.TRANSLATION_Y,
+                            -navHeight
+                        )
+                    }
                 }
-                for (key in keyFrame.getKeyFramesForView(binding.container.id)) {
-                    if (key.framePosition == 100) key.setValue(
-                        Key.TRANSLATION_Y,
-                        -binding.bottomNav.height
-                    )
-                }
+                binding.root.scene?.setTransition(transition)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            binding.root.scene.setTransition(transition)
         }
 
         // Check update automatically
@@ -222,8 +228,9 @@ class MainActivity : AbstractPlayerHostActivity() {
 
         // handle error logs
         PreferenceHelper.getErrorLog().ifBlank { null }?.let {
-            if (!BuildConfig.DEBUG)
+            runCatching {
                 ErrorDialog().show(supportFragmentManager, null)
+            }
         }
 
         setupSubscriptionsBadge()
@@ -618,6 +625,12 @@ class MainActivity : AbstractPlayerHostActivity() {
             onUserLeaveHint()
             true
         }
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode)
+        binding.appBarLayout.isVisible = !isInPictureInPictureMode
+        binding.bottomNav.isVisible = !isInPictureInPictureMode
     }
 
     override fun onNewIntent(intent: Intent) {

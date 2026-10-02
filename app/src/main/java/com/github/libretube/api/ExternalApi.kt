@@ -3,6 +3,7 @@ package com.github.libretube.api
 import com.github.libretube.api.obj.DeArrowBody
 import com.github.libretube.api.obj.DeArrowContent
 import com.github.libretube.api.obj.SegmentData
+import com.github.libretube.api.obj.Streams
 import com.github.libretube.api.obj.SubmitSegmentResponse
 import com.github.libretube.api.obj.VideoLabelData
 import com.github.libretube.api.obj.VoteInfo
@@ -56,6 +57,9 @@ interface ExternalApi {
 
     @POST("$SB_API_URL/api/branding")
     suspend fun submitDeArrow(@Body body: DeArrowBody)
+
+    @GET
+    suspend fun getPipedStreams(@Url url: String): Streams
 
     /**
      * @param score: 0 for downvote, 1 for upvote, 20 for undoing previous vote (if existent)

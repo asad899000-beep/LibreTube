@@ -18,6 +18,7 @@ import com.github.libretube.db.DatabaseHolder
 import com.github.libretube.enums.PlaylistType
 import com.github.libretube.extensions.formatShort
 import com.github.libretube.extensions.toID
+import com.github.libretube.helpers.ContextHelper
 import com.github.libretube.helpers.ImageHelper
 import com.github.libretube.helpers.NavigationHelper
 import com.github.libretube.parcelable.PlayerData
@@ -110,9 +111,10 @@ class SearchResultsAdapter(
             }
 
             val videoId = item.url.toID()
-            val activity = (root.context as BaseActivity)
-            val fragmentManager = activity.supportFragmentManager
+            val activity = ContextHelper.tryUnwrapActivity<BaseActivity>(root.context)
+            val fragmentManager = activity?.supportFragmentManager
             root.setOnLongClickListener {
+                if (fragmentManager == null || activity == null) return@setOnLongClickListener false
                 fragmentManager.setFragmentResultListener(
                     VideoOptionsBottomSheet.VIDEO_OPTIONS_SHEET_REQUEST_KEY,
                     activity
@@ -188,7 +190,9 @@ class SearchResultsAdapter(
                     IntentData.channelName to item.name,
                     IntentData.isSubscribed to subscribed
                 )
-                channelOptionsSheet.show((root.context as BaseActivity).supportFragmentManager)
+                ContextHelper.tryUnwrapActivity<BaseActivity>(root.context)?.supportFragmentManager?.let { fm ->
+                    channelOptionsSheet.show(fm)
+                }
                 true
             }
         }
@@ -211,10 +215,9 @@ class SearchResultsAdapter(
                     IntentData.playlistName to item.name.orEmpty(),
                     IntentData.playlistType to PlaylistType.PUBLIC
                 )
-                sheet.show(
-                    (root.context as BaseActivity).supportFragmentManager,
-                    PlaylistOptionsBottomSheet::class.java.name
-                )
+                ContextHelper.tryUnwrapActivity<BaseActivity>(root.context)?.supportFragmentManager?.let { fm ->
+                    sheet.show(fm, PlaylistOptionsBottomSheet::class.java.name)
+                }
                 true
             }
         }

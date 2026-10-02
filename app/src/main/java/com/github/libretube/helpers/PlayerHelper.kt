@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Resources
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Looper
 import android.util.Base64
@@ -317,6 +318,18 @@ object PlayerHelper {
             false
         )
 
+    val pipEnabled: Boolean
+        get() = PreferenceHelper.getBoolean(
+            PreferenceKeys.PIP_ENABLED,
+            true
+        )
+
+    val autoPipEnabled: Boolean
+        get() = pipEnabled && PreferenceHelper.getBoolean(
+            PreferenceKeys.AUTO_PIP,
+            true
+        )
+
     private val alternativePiPControls: Boolean
         get() = PreferenceHelper.getBoolean(
             PreferenceKeys.ALTERNATIVE_PIP_CONTROLS,
@@ -381,10 +394,15 @@ object PlayerHelper {
     }
 
     private fun seekIconWithSpeed(resources: Resources, @DrawableRes resourceId: Int): IconCompat {
-        val textSize = 15 * resources.displayMetrics.density
-        val bitmap = ResourcesCompat.getDrawable(resources, resourceId, null)!!.toBitmap()
-        ImageHelper.insertText(bitmap, seekIncrement.div(1000).toString(), 0.5f, 0.65f, textSize)
-        return IconCompat.createWithBitmap(bitmap)
+        return runCatching {
+            val textSize = 15 * resources.displayMetrics.density
+            val origBitmap = ResourcesCompat.getDrawable(resources, resourceId, null)!!.toBitmap()
+            val bitmap = origBitmap.copy(Bitmap.Config.ARGB_8888, true)
+            ImageHelper.insertText(bitmap, seekIncrement.div(1000).toString(), 0.5f, 0.65f, textSize)
+            IconCompat.createWithBitmap(bitmap)
+        }.getOrElse {
+            IconCompat.createWithResource(LibreTubeApp.instance, resourceId)
+        }
     }
 
     /**

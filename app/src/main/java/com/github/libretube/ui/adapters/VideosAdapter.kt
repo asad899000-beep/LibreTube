@@ -12,6 +12,7 @@ import com.github.libretube.constants.IntentData
 import com.github.libretube.databinding.VideoRowBinding
 import com.github.libretube.db.DatabaseHolder
 import com.github.libretube.extensions.toID
+import com.github.libretube.helpers.ContextHelper
 import com.github.libretube.helpers.ImageHelper
 import com.github.libretube.helpers.NavigationHelper
 import com.github.libretube.parcelable.PlayerData
@@ -48,12 +49,12 @@ class VideosAdapter(
 
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: VideosViewHolder, position: Int) {
-        val video = getItem(holder.bindingAdapterPosition)
+        val video = getItem(position)
         val videoId = video.url.orEmpty().toID()
 
         val context = holder.binding.root.context
-        val activity = (context as BaseActivity)
-        val fragmentManager = activity.supportFragmentManager
+        val activity = ContextHelper.tryUnwrapActivity<BaseActivity>(context)
+        val fragmentManager = activity?.supportFragmentManager
 
         with(holder.binding) {
             videoTitle.text = video.title
@@ -79,6 +80,7 @@ class VideosAdapter(
             }
 
             root.setOnLongClickListener {
+                if (fragmentManager == null || activity == null) return@setOnLongClickListener false
                 fragmentManager.setFragmentResultListener(
                     VideoOptionsBottomSheet.VIDEO_OPTIONS_SHEET_REQUEST_KEY,
                     activity

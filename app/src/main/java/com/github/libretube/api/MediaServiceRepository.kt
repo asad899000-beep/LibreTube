@@ -43,8 +43,7 @@ interface MediaServiceRepository {
     suspend fun getPlaylistNextPage(playlistId: String, nextPage: String): Playlist
 
     companion object {
-        val instance: MediaServiceRepository
-            get() =  NewPipeMediaServiceRepository()
+        val instance: MediaServiceRepository by lazy { NewPipeMediaServiceRepository() }
     }
 }
 

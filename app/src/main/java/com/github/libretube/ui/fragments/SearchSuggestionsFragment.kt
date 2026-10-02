@@ -64,7 +64,9 @@ class SearchSuggestionsFragment : Fragment(R.layout.fragment_search_suggestions)
                             result.historyList,
                             result.suggestionList
                         ) {
-                            binding.suggestionsRecycler.scrollToPosition(0)
+                            if (_binding != null) {
+                                binding.suggestionsRecycler.scrollToPosition(0)
+                            }
                         }
                     }
                 }
@@ -83,8 +85,8 @@ class SearchSuggestionsFragment : Fragment(R.layout.fragment_search_suggestions)
         binding.suggestionsRecycler.isGone = show
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
+    override fun onDestroyView() {
+        super.onDestroyView()
 
         _binding = null
     }

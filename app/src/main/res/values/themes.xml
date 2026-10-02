@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <style name="BaseTheme" parent="Theme.Material3Expressive.Light.NoActionBar">
+    <style name="BaseTheme" parent="Theme.Material3.Light.NoActionBar">
 
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
@@ -18,7 +18,7 @@
         <item name="materialAlertDialogTheme">@style/AlertDialogTheme</item>
 
         <!-- needed for ButtonGroupPreference.kt -->
-        <item name="tonalButtonStyleCustomAttr">@style/Widget.Material3Expressive.Button.TonalButton</item>
+        <item name="tonalButtonStyleCustomAttr">@style/Widget.Material3.Button.TonalButton</item>
     </style>
 
     <style name="SplashScreenTheme" parent="Theme.SplashScreen">

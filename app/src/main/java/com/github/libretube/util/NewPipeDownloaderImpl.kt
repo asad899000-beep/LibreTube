@@ -39,7 +39,7 @@ class NewPipeDownloaderImpl : Downloader() {
             }
 
             else -> {
-                val responseBodyToReturn = response.body.string()
+                val responseBodyToReturn = response.body?.string().orEmpty()
                 Response(
                     response.code,
                     response.message,

@@ -11,6 +11,7 @@ import com.github.libretube.constants.IntentData
 import com.github.libretube.databinding.PlaylistsRowBinding
 import com.github.libretube.db.obj.PlaylistBookmark
 import com.github.libretube.enums.PlaylistType
+import com.github.libretube.helpers.ContextHelper
 import com.github.libretube.helpers.ImageHelper
 import com.github.libretube.helpers.NavigationHelper
 import com.github.libretube.repo.UserDataRepositoryHelper
@@ -41,13 +42,13 @@ class PlaylistBookmarkAdapter: ListAdapter<PlaylistBookmark, PlaylistBookmarkVie
             IntentData.playlistName to bookmark.playlistName,
             IntentData.playlistType to PlaylistType.PUBLIC
         )
-        sheet.show(
-            (context as BaseActivity).supportFragmentManager
-        )
+        ContextHelper.tryUnwrapActivity<BaseActivity>(context)?.supportFragmentManager?.let {
+            sheet.show(it)
+        }
     }
 
     override fun onBindViewHolder(holder: PlaylistBookmarkViewHolder, position: Int) {
-        val bookmark = getItem(holder.bindingAdapterPosition)
+        val bookmark = getItem(position)
 
         with(holder.binding) {
             var isBookmarked = true

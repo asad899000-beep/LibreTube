@@ -126,6 +126,22 @@
             app:title="@string/buffering_goal" />
 
         <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:icon="@drawable/ic_open"
+            android:summary="@string/pip_enabled_summary"
+            app:key="pip_enabled"
+            app:title="@string/pip_enabled" />
+
+        <SwitchPreferenceCompat
+            android:dependency="pip_enabled"
+            android:defaultValue="true"
+            android:icon="@drawable/ic_open"
+            android:summary="@string/auto_pip_summary"
+            app:key="auto_pip"
+            app:title="@string/auto_pip" />
+
+        <SwitchPreferenceCompat
+            android:dependency="pip_enabled"
             android:defaultValue="false"
             android:icon="@drawable/ic_headphones"
             android:summary="@string/alternative_pip_controls_summary"

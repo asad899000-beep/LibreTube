@@ -44,7 +44,6 @@
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintWidth_max="wrap"
                         app:layout_constraintWidth_percent="0.5"
-                        app:materialSizeOverlay="@style/SizeOverlay.Material3Expressive.Button.Medium"
                         tools:text="a longer translated text version" />
 
                     <com.google.android.material.button.MaterialButton
@@ -60,8 +59,7 @@
                         app:layout_constraintStart_toEndOf="@id/watch_history"
                         app:layout_constraintTop_toTopOf="parent"
                         app:layout_constraintWidth_max="wrap"
-                        app:layout_constraintWidth_percent="0.5"
-                        app:materialSizeOverlay="@style/SizeOverlay.Material3Expressive.Button.Medium" />
+                        app:layout_constraintWidth_percent="0.5" />
 
                 </androidx.constraintlayout.widget.ConstraintLayout>
 

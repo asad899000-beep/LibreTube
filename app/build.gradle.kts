@@ -4,10 +4,11 @@ import com.google.protobuf.gradle.id
 
 plugins {
     alias(libs.plugins.androidApplication)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.parcelize)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.androidx.navigation.safeargs)
-    alias(libs.plugins.baselineprofile)
+    // alias(libs.plugins.baselineprofile)
     alias(libs.plugins.ksp)
     alias(libs.plugins.google.protobuf)
 }
@@ -50,6 +51,12 @@ android {
     }
 
     signingConfigs {
+        create("debugConfig") {
+            storeFile = file("${rootDir}/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (keystoreFileExists) {
             create("release") {
                 storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
@@ -73,8 +80,8 @@ android {
 
         getByName("debug") {
             isDebuggable = true
-            applicationIdSuffix = ".debug"
-            resValue("string", "app_name", "LibreTube Debug")
+            signingConfig = signingConfigs.getByName("debugConfig")
+            resValue("string", "app_name", "LibreTube")
         }
     }
 
@@ -88,6 +95,7 @@ android {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_17
             javaParameters = true
+            freeCompilerArgs.addAll("-opt-in=kotlin.time.ExperimentalTime")
         }
     }
 
@@ -123,6 +131,7 @@ android {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-parcelize-runtime:2.2.10")
     /* Android Core */
     implementation(libs.androidx.activity)
     implementation(libs.androidx.appcompat)
@@ -180,7 +189,7 @@ dependencies {
 
     /* Baseline profile generation */
     implementation(libs.androidx.profileinstaller)
-    baselineProfile(project(":baselineprofile"))
+    // baselineProfile(project(":baselineprofile"))
 
     /* AndroidX Paging */
     implementation(libs.androidx.paging)

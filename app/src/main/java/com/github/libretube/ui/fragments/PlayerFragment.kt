@@ -12,6 +12,7 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.media.session.PlaybackState
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -22,6 +23,8 @@ import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
+import android.util.Log
+import com.github.libretube.extensions.TAG
 import androidx.activity.BackEventCompat
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -439,9 +442,15 @@ class PlayerFragment : Fragment(R.layout.fragment_player), CustomPlayerCallback 
             setFullscreen()
         }
 
-        viewLifecycleOwner.lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                requireActivity().trackPipAnimationHintView(binding.player)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && isPipAvailable()) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    try {
+                        requireActivity().trackPipAnimationHintView(binding.player)
+                    } catch (e: Throwable) {
+                        Log.e(TAG(), "trackPipAnimationHintView error", e)
+                    }
+                }
             }
         }
 
@@ -868,22 +877,25 @@ class PlayerFragment : Fragment(R.layout.fragment_player), CustomPlayerCallback 
 
     private fun openOrCloseFullscreenDialog(open: Boolean) {
         val playerView = binding.player
-        (playerView.parent as ViewGroup).removeView(playerView)
 
         if (open) {
+            if (fullscreenDialog.isShowing) return
+            (playerView.parent as? ViewGroup)?.removeView(playerView)
             fullscreenDialog.addContentView(
-                binding.player,
+                playerView,
                 LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
             )
             fullscreenDialog.show()
             playerView.currentWindow = fullscreenDialog.window
         } else {
+            if (!fullscreenDialog.isShowing) return
+            (playerView.parent as? ViewGroup)?.removeView(playerView)
             binding.playerMotionLayout.addView(playerView)
             playerView.currentWindow = null
             fullscreenDialog.dismiss()
         }
 
-        WindowHelper.toggleFullscreen(fullscreenDialog.window!!, open)
+        fullscreenDialog.window?.let { WindowHelper.toggleFullscreen(it, open) }
     }
 
     override fun onPause() {
@@ -1353,10 +1365,23 @@ class PlayerFragment : Fragment(R.layout.fragment_player), CustomPlayerCallback 
             binding.player.updateCurrentSubtitle(null)
             playerBackgroundBinding.sbSkipBtn.isGone = true
 
-            openOrCloseFullscreenDialog(true)
+            // Never show or keep a separate Dialog window in PiP mode!
+            // Showing a Dialog in PiP mode causes WindowManager/SystemUI crashes on Android 11.
+            if (fullscreenDialog.isShowing) {
+                (binding.player.parent as? ViewGroup)?.removeView(binding.player)
+                binding.playerMotionLayout.addView(binding.player)
+                binding.player.currentWindow = null
+                fullscreenDialog.dismiss()
+            }
+
+            // Hide the player scroll view and other non-video elements in PiP
+            binding.playerScrollView.isGone = true
+            binding.playerMotionLayout.transitionToStart()
+            binding.player.currentWindow = activity?.window
             pipActivity = activity
         } else {
             binding.player.useController = true
+            binding.playerScrollView.isGone = false
 
             // close button got clicked in PiP mode
             // pause the video and keep the app alive
@@ -1367,10 +1392,13 @@ class PlayerFragment : Fragment(R.layout.fragment_player), CustomPlayerCallback 
 
             binding.player.updateCurrentSubtitle(viewModel.currentCaptionId)
 
-            // unset fullscreen if it's not been enabled before the start of PiP
-            if (commonPlayerViewModel.isFullscreen.value != true) {
-                openOrCloseFullscreenDialog(false)
+            // restore fullscreen dialog if it was enabled before the start of PiP
+            if (commonPlayerViewModel.isFullscreen.value == true) {
+                openOrCloseFullscreenDialog(true)
+            } else {
+                binding.player.currentWindow = null
             }
+            binding.player.updateMarginsByFullscreenMode()
         }
     }
 
@@ -1404,11 +1432,15 @@ class PlayerFragment : Fragment(R.layout.fragment_player), CustomPlayerCallback 
      * Detect whether PiP is supported and enabled
      */
     private fun isPipAvailable() =
-        PictureInPictureCompat.isPictureInPictureAvailable(requireContext())
+        PlayerHelper.pipEnabled
+                && PictureInPictureCompat.isPictureInPictureAvailable(requireContext())
                 && PictureInPictureCompat.isPictureInPictureEnabled(requireContext())
 
     private fun shouldStartPiP(): Boolean {
-        return isPipAvailable() && ::playerController.isInitialized && playerController.isPlaying
+        return PlayerHelper.autoPipEnabled
+                && isPipAvailable()
+                && ::playerController.isInitialized
+                && playerController.isPlaying
     }
 
     /**

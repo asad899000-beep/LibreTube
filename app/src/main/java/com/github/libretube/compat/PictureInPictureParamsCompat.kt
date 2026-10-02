@@ -85,9 +85,12 @@ class PictureInPictureParamsCompat private constructor(
 
         // Additional function replacing the project's extension function for the platform builder.
         fun setAspectRatio(videoSize: VideoSize): Builder {
+            if (videoSize.width <= 0 || videoSize.height <= 0) {
+                return setAspectRatio(Rational(16, 9))
+            }
             val ratio = (videoSize.width.toFloat() / videoSize.height)
             val rational = when {
-                ratio.isNaN() -> Rational(4, 3)
+                ratio.isNaN() -> Rational(16, 9)
                 ratio <= 0.418410 -> Rational(41841, 100000)
                 ratio >= 2.390000 -> Rational(239, 100)
                 else -> Rational(videoSize.width, videoSize.height)

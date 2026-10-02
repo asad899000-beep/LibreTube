@@ -9,6 +9,7 @@ import com.github.libretube.api.obj.Playlists
 import com.github.libretube.constants.IntentData
 import com.github.libretube.databinding.PlaylistsRowBinding
 import com.github.libretube.enums.PlaylistType
+import com.github.libretube.helpers.ContextHelper
 import com.github.libretube.helpers.ImageHelper
 import com.github.libretube.helpers.NavigationHelper
 import com.github.libretube.ui.adapters.callbacks.DiffUtilItemCallback
@@ -30,7 +31,7 @@ class PlaylistsAdapter(
     }
 
     override fun onBindViewHolder(holder: PlaylistsViewHolder, position: Int) {
-        val playlist = getItem(holder.bindingAdapterPosition)
+        val playlist = getItem(position)
         holder.binding.apply {
             // set imageview drawable as empty playlist if imageview empty
             if (playlist.thumbnail.orEmpty().split("/").size <= 4) {
@@ -49,11 +50,13 @@ class PlaylistsAdapter(
                 NavigationHelper.navigatePlaylist(root.context, playlist.id, playlistType)
             }
 
-            val fragmentManager = (root.context as BaseActivity).supportFragmentManager
+            val activity = ContextHelper.tryUnwrapActivity<BaseActivity>(root.context)
+            val fragmentManager = activity?.supportFragmentManager
             root.setOnLongClickListener {
+                if (fragmentManager == null || activity == null) return@setOnLongClickListener false
                 fragmentManager.setFragmentResultListener(
                     PLAYLIST_OPTIONS_REQUEST_KEY,
-                    (root.context as BaseActivity)
+                    activity
                 ) { _, resultBundle ->
                     val newPlaylistDescription =
                         resultBundle.getString(IntentData.playlistDescription)

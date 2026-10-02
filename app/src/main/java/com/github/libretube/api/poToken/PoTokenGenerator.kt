@@ -30,8 +30,10 @@ class PoTokenGenerator : PoTokenProvider {
             return null
         }
 
-        return getWebClientPoToken(videoId, false)
-            .also { poToken = it }
+        return runCatching {
+            getWebClientPoToken(videoId, false)
+                .also { poToken = it }
+        }.getOrNull()
     }
 
     /**
@@ -107,10 +109,13 @@ class PoTokenGenerator : PoTokenProvider {
         return PoTokenResult(visitorData, poToken, poToken)
     }
 
-    override fun getWebEmbedClientPoToken(videoId: String?): PoTokenResult? = null
+    override fun getWebEmbedClientPoToken(videoId: String?): PoTokenResult? =
+        getWebClientPoToken(videoId.orEmpty())
 
-    override fun getAndroidClientPoToken(videoId: String?): PoTokenResult? = null
+    override fun getAndroidClientPoToken(videoId: String?): PoTokenResult? =
+        getWebClientPoToken(videoId.orEmpty())
 
-    override fun getIosClientPoToken(videoId: String?): PoTokenResult? = null
+    override fun getIosClientPoToken(videoId: String?): PoTokenResult? =
+        getWebClientPoToken(videoId.orEmpty())
 }
 

@@ -171,7 +171,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/play_all"
-                        style="@style/Widget.Material3Expressive.Button.OutlinedButton"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -181,7 +181,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/bookmark"
-                        style="@style/Widget.Material3Expressive.Button"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"

@@ -10,6 +10,9 @@ import androidx.annotation.MainThread
 import com.github.libretube.BuildConfig
 import com.github.libretube.api.RetrofitInstance
 import com.github.libretube.api.USER_AGENT
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -226,12 +229,28 @@ class PoTokenWebView private constructor(
     //region Utils
     /**
      * Makes a POST request to [url] with the given [data] by setting the correct headers.
-     * This is supposed to be used only during initialization. Returns the  response body
+     * This is supposed to be used only during initialization. Returns the response body
      * as a String if the response is successful.
      */
     private suspend fun makeBotguardServiceRequest(url: String, data: List<String>): String = withContext(Dispatchers.IO) {
-        val response = RetrofitInstance.externalApi.botguardRequest(url, data)
-        response.toString()
+        val client = OkHttpClient()
+        val jsonPayload = com.github.libretube.api.JsonHelper.json.encodeToString(data)
+        val requestBody = jsonPayload.toRequestBody("application/json+protobuf".toMediaType())
+        val request = okhttp3.Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .header("User-Agent", USER_AGENT)
+            .header("Accept", "*/*")
+            .header("Content-Type", "application/json+protobuf")
+            .header("x-goog-api-key", "AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw")
+            .header("x-user-agent", "grpc-web-javascript/0.1")
+            .build()
+        val response = client.newCall(request).execute()
+        val body = response.body?.string().orEmpty()
+        if (!response.isSuccessful) {
+            throw java.io.IOException("Botguard request failed with code ${response.code}: $body")
+        }
+        body
     }
 
     /**

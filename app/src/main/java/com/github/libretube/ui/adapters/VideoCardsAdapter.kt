@@ -15,6 +15,7 @@ import com.github.libretube.databinding.AllCaughtUpRowBinding
 import com.github.libretube.databinding.TrendingRowBinding
 import com.github.libretube.extensions.dpToPx
 import com.github.libretube.extensions.toID
+import com.github.libretube.helpers.ContextHelper
 import com.github.libretube.helpers.ImageHelper
 import com.github.libretube.helpers.NavigationHelper
 import com.github.libretube.helpers.PlayerHelper
@@ -65,12 +66,12 @@ class VideoCardsAdapter(private val columnWidthDp: Float? = null) :
 
     @SuppressLint("SetTextI18n")
     override fun onBindViewHolder(holder: VideoCardsViewHolder, position: Int) {
-        val video = getItem(holder.bindingAdapterPosition)
+        val video = getItem(position)
         val videoId = video.url.orEmpty().toID()
 
         val context = (holder.trendingRowBinding ?: holder.allCaughtUpBinding)!!.root.context
-        val activity = (context as BaseActivity)
-        val fragmentManager = activity.supportFragmentManager
+        val activity = ContextHelper.tryUnwrapActivity<BaseActivity>(context)
+        val fragmentManager = activity?.supportFragmentManager
 
         holder.trendingRowBinding?.apply {
             // set a fixed width for better visuals
@@ -115,6 +116,7 @@ class VideoCardsAdapter(private val columnWidthDp: Float? = null) :
             }
 
             root.setOnLongClickListener {
+                if (fragmentManager == null || activity == null) return@setOnLongClickListener false
                 fragmentManager.setFragmentResultListener(
                     VideoOptionsBottomSheet.VIDEO_OPTIONS_SHEET_REQUEST_KEY,
                     activity

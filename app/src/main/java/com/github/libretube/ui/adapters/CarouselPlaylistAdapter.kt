@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.ListAdapter
 import com.github.libretube.constants.IntentData
 import com.github.libretube.databinding.CarouselPlaylistThumbnailBinding
 import com.github.libretube.enums.PlaylistType
+import com.github.libretube.helpers.ContextHelper
 import com.github.libretube.helpers.ImageHelper
 import com.github.libretube.helpers.NavigationHelper
 import com.github.libretube.ui.adapters.callbacks.DiffUtilItemCallback
@@ -52,7 +53,9 @@ class CarouselPlaylistAdapter(private val playlistType: PlaylistType) : ListAdap
                     IntentData.playlistName to item.title,
                     IntentData.playlistType to playlistType
                 )
-                playlistOptionsDialog.show((root.context as BaseActivity).supportFragmentManager)
+                ContextHelper.tryUnwrapActivity<BaseActivity>(root.context)?.supportFragmentManager?.let { fm ->
+                    playlistOptionsDialog.show(fm)
+                }
 
                 true
             }

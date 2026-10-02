@@ -51,7 +51,15 @@ import org.schabi.newpipe.extractor.stream.ContentAvailability
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.VideoStream
-import kotlin.time.toKotlinInstant
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 
 private fun VideoStream.toPipedStream() = PipedStream(
@@ -285,15 +293,19 @@ class NewPipeMediaServiceRepository : MediaServiceRepository {
     }
 
     override suspend fun getStreams(videoId: String): Streams = withContext(Dispatchers.IO) {
-        val respAsync = async {
-            StreamInfo.getInfo("$YOUTUBE_FRONTEND_URL/watch?v=$videoId")
-        }
         val dislikesAsync = async {
             if (PlayerHelper.localRYD) runCatching {
                 RetrofitInstance.externalApi.getVotes(videoId).dislikes
             }.getOrElse { -1 } else -1
         }
-        val (resp, dislikes) = Pair(respAsync.await(), dislikesAsync.await())
+
+        val resp = try {
+            StreamInfo.getInfo("$YOUTUBE_FRONTEND_URL/watch?v=$videoId")
+        } catch (e: Throwable) {
+            return@withContext fetchStreamsFallback(videoId)
+        }
+
+        val dislikes = dislikesAsync.await()
 
         Streams(
             title = resp.name,
@@ -321,7 +333,7 @@ class NewPipeMediaServiceRepository : MediaServiceRepository {
             },
             visibility = resp.privacy.name.lowercase(),
             duration = resp.duration,
-            uploadTimestamp = resp.uploadDate.offsetDateTime().toInstant().toKotlinInstant(),
+            uploadTimestamp = kotlinx.datetime.Instant.fromEpochMilliseconds(resp.uploadDate.offsetDateTime().toInstant().toEpochMilli()),
             uploaded = resp.uploadDate.offsetDateTime().toEpochSecond() * 1000,
             thumbnailUrl = resp.thumbnails.maxBy { it.height }.url,
             relatedStreams = resp.relatedItems
@@ -363,6 +375,166 @@ class NewPipeMediaServiceRepository : MediaServiceRepository {
             serverAbrStreamingUrl = resp.serverAbrStreamingUrl,
             videoPlaybackUstreamerConfig = resp.ustreamerConfig,
         )
+    }
+
+    private suspend fun fetchStreamsFallback(videoId: String): Streams {
+        val pipedInstances = listOf(
+            "https://pipedapi.kavin.rocks",
+            "https://api-piped.mha.fi",
+            "https://piped-api.garudalinux.org",
+            "https://pipedapi.tokhmi.xyz",
+            "https://pipedapi.leptons.xyz",
+            "https://pipedapi.r4fo.com",
+            "https://pipedapi.adminforge.de",
+            "https://pipedapi.astartes.nl",
+            "https://pipedapi.smnz.de",
+            "https://pa.il.ax",
+            "https://piped-api.hostux.net",
+            "https://api.piped.privacy.com.de",
+            "https://pipedapi.drgns.space",
+            "https://piped-api.lunar.icu",
+            "https://pipedapi.in.projectsegfau.lt"
+        )
+        for (instance in pipedInstances) {
+            try {
+                return RetrofitInstance.externalApi.getPipedStreams("$instance/streams/$videoId")
+            } catch (_: Exception) {
+                continue
+            }
+        }
+
+        return fetchStreamsFromInvidious(videoId)
+    }
+
+    private fun fetchStreamsFromInvidious(videoId: String): Streams {
+        val invidiousInstances = listOf(
+            "https://invidious.nerdvpn.de",
+            "https://inv.tux.pizza",
+            "https://invidious.private.coffee",
+            "https://invidious.jing.rocks",
+            "https://vid.puffyan.us",
+            "https://invidious.no-logs.com",
+            "https://iv.melmac.space",
+            "https://invidious.projectsegfau.lt"
+        )
+        val client = OkHttpClient.Builder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(8, TimeUnit.SECONDS)
+            .build()
+
+        for (instance in invidiousInstances) {
+            try {
+                val request = okhttp3.Request.Builder()
+                    .url("$instance/api/v1/videos/$videoId")
+                    .header("User-Agent", USER_AGENT)
+                    .build()
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) continue
+                val bodyString = response.body?.string() ?: continue
+                val root = JsonHelper.json.parseToJsonElement(bodyString).jsonObject
+                val title = root["title"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val description = root["description"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val author = root["author"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val authorId = root["authorId"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val lengthSeconds = root["lengthSeconds"]?.jsonPrimitive?.longOrNull ?: 0L
+                val viewCount = root["viewCount"]?.jsonPrimitive?.longOrNull ?: 0L
+                val likeCount = root["likeCount"]?.jsonPrimitive?.longOrNull ?: 0L
+                val authorVerified = root["authorVerified"]?.jsonPrimitive?.booleanOrNull ?: false
+                val genre = root["genre"]?.jsonPrimitive?.contentOrNull ?: "General"
+                val hlsUrl = root["hlsUrl"]?.jsonPrimitive?.contentOrNull
+                val dashUrl = root["dashUrl"]?.jsonPrimitive?.contentOrNull
+
+                val authorThumbnails = root["authorThumbnails"]?.jsonArray?.mapNotNull {
+                    it.jsonObject["url"]?.jsonPrimitive?.contentOrNull
+                } ?: emptyList()
+                val videoThumbnails = root["videoThumbnails"]?.jsonArray?.mapNotNull {
+                    it.jsonObject["url"]?.jsonPrimitive?.contentOrNull
+                } ?: emptyList()
+
+                val formatStreams = root["formatStreams"]?.jsonArray?.mapNotNull { item ->
+                    val obj = item.jsonObject
+                    val url = obj["url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    val quality = obj["qualityLabel"]?.jsonPrimitive?.contentOrNull ?: obj["quality"]?.jsonPrimitive?.contentOrNull ?: "720p"
+                    val container = obj["container"]?.jsonPrimitive?.contentOrNull ?: "mp4"
+                    val type = obj["type"]?.jsonPrimitive?.contentOrNull ?: "video/mp4"
+                    val bitrate = obj["bitrate"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: obj["bitrate"]?.jsonPrimitive?.intOrNull
+                    PipedStream(url = url, format = container, quality = quality, mimeType = type, bitrate = bitrate, videoOnly = false)
+                } ?: emptyList()
+
+                val adaptiveFormats = root["adaptiveFormats"]?.jsonArray?.mapNotNull { item ->
+                    val obj = item.jsonObject
+                    val url = obj["url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    val type = obj["type"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    val container = obj["container"]?.jsonPrimitive?.contentOrNull ?: "mp4"
+                    val bitrate = obj["bitrate"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: obj["bitrate"]?.jsonPrimitive?.intOrNull
+                    val isVideo = type.startsWith("video")
+                    val isAudio = type.startsWith("audio")
+                    if (isVideo) {
+                        val quality = obj["qualityLabel"]?.jsonPrimitive?.contentOrNull ?: obj["resolution"]?.jsonPrimitive?.contentOrNull ?: "video"
+                        PipedStream(url = url, format = container, quality = quality, mimeType = type, bitrate = bitrate, videoOnly = true)
+                    } else if (isAudio) {
+                        val quality = obj["audioQuality"]?.jsonPrimitive?.contentOrNull ?: "medium"
+                        PipedStream(url = url, format = container, quality = quality, mimeType = type, bitrate = bitrate, videoOnly = false)
+                    } else null
+                } ?: emptyList()
+
+                val audioStreams = adaptiveFormats.filter { it.videoOnly == false }
+                val videoStreams = formatStreams + adaptiveFormats.filter { it.videoOnly == true }
+
+                val subtitles = root["subtitles"]?.jsonArray?.mapNotNull { item ->
+                    val obj = item.jsonObject
+                    val subUrl = obj["url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    val label = obj["label"]?.jsonPrimitive?.contentOrNull ?: "English"
+                    val code = obj["code"]?.jsonPrimitive?.contentOrNull ?: "en"
+                    Subtitle(url = subUrl, name = label, code = code)
+                } ?: emptyList()
+
+                val relatedStreams = root["recommendedVideos"]?.jsonArray?.mapNotNull { item ->
+                    val obj = item.jsonObject
+                    val relId = obj["videoId"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    val relTitle = obj["title"]?.jsonPrimitive?.contentOrNull
+                    val relAuthor = obj["author"]?.jsonPrimitive?.contentOrNull
+                    val relAuthorId = obj["authorId"]?.jsonPrimitive?.contentOrNull
+                    val relLength = obj["lengthSeconds"]?.jsonPrimitive?.longOrNull
+                    val relViews = obj["viewCount"]?.jsonPrimitive?.longOrNull
+                    val relThumbs = obj["videoThumbnails"]?.jsonArray?.mapNotNull { it.jsonObject["url"]?.jsonPrimitive?.contentOrNull }
+                    StreamItem(
+                        url = relId,
+                        title = relTitle,
+                        thumbnail = relThumbs?.firstOrNull() ?: "https://i.ytimg.com/vi/$relId/hqdefault.jpg",
+                        uploaderName = relAuthor,
+                        uploaderUrl = relAuthorId,
+                        duration = relLength,
+                        views = relViews
+                    )
+                } ?: emptyList()
+
+                if (audioStreams.isNotEmpty() || videoStreams.isNotEmpty() || hlsUrl != null) {
+                    return Streams(
+                        title = title,
+                        description = description,
+                        uploader = author,
+                        uploaderUrl = authorId,
+                        uploaderAvatar = authorThumbnails.firstOrNull(),
+                        thumbnailUrl = videoThumbnails.firstOrNull() ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                        category = genre,
+                        duration = lengthSeconds,
+                        views = viewCount,
+                        likes = likeCount,
+                        uploaderVerified = authorVerified,
+                        audioStreams = audioStreams,
+                        videoStreams = videoStreams,
+                        relatedStreams = relatedStreams,
+                        subtitles = subtitles,
+                        hls = hlsUrl,
+                        dash = dashUrl
+                    )
+                }
+            } catch (_: Exception) {
+                continue
+            }
+        }
+        throw org.schabi.newpipe.extractor.exceptions.ParsingException("Could not fetch streams from YouTube, Piped, or Invidious fallback")
     }
 
     override suspend fun getSegments(
@@ -426,8 +598,12 @@ class NewPipeMediaServiceRepository : MediaServiceRepository {
         )
     }
 
-    override suspend fun getSuggestions(query: String): List<String> {
-        return NewPipeExtractorInstance.extractor.suggestionExtractor.suggestionList(query)
+    override suspend fun getSuggestions(query: String): List<String> = withContext(Dispatchers.IO) {
+        try {
+            NewPipeExtractorInstance.extractor.suggestionExtractor.suggestionList(query)
+        } catch (t: Throwable) {
+            emptyList()
+        }
     }
 
     private suspend fun getLatestVideos(channelInfo: ChannelInfo): Pair<List<StreamItem>, String?> {

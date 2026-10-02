@@ -13,6 +13,7 @@ import com.github.libretube.db.DatabaseHolder
 import com.github.libretube.db.obj.WatchHistoryItem
 import com.github.libretube.extensions.toID
 import com.github.libretube.extensions.toLocalDate
+import com.github.libretube.helpers.ContextHelper
 import com.github.libretube.helpers.ImageHelper
 import com.github.libretube.helpers.NavigationHelper
 import com.github.libretube.parcelable.PlayerData
@@ -75,9 +76,10 @@ class WatchHistoryAdapter(
                 NavigationHelper.navigateVideo(root.context, PlayerData(video.url?.toID()))
             }
 
-            val activity = (root.context as BaseActivity)
-            val fragmentManager = activity.supportFragmentManager
+            val activity = ContextHelper.tryUnwrapActivity<BaseActivity>(root.context)
+            val fragmentManager = activity?.supportFragmentManager
             root.setOnLongClickListener {
+                if (fragmentManager == null || activity == null) return@setOnLongClickListener false
                 fragmentManager.setFragmentResultListener(
                     VideoOptionsBottomSheet.VIDEO_OPTIONS_SHEET_REQUEST_KEY,
                     activity

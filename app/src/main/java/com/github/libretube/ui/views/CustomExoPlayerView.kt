@@ -56,6 +56,7 @@ import com.github.libretube.extensions.togglePlayPauseState
 import com.github.libretube.extensions.updateIfChanged
 import com.github.libretube.helpers.AudioHelper
 import com.github.libretube.helpers.BrightnessHelper
+import com.github.libretube.helpers.ContextHelper
 import com.github.libretube.helpers.PlayerHelper
 import com.github.libretube.helpers.PreferenceHelper
 import com.github.libretube.helpers.WindowHelper
@@ -134,7 +135,7 @@ class CustomExoPlayerView(
         AspectRatioFrameLayout.RESIZE_MODE_FILL to R.string.resize_mode_fill
     )
 
-    private val activity get() = context as BaseActivity
+    private val activity get() = ContextHelper.unwrapActivity<BaseActivity>(context)
 
     private val supportFragmentManager
         get() = activity.supportFragmentManager
@@ -340,7 +341,7 @@ class CustomExoPlayerView(
         binding.sbSubmit.setOnClickListener {
             val submitSegmentDialog = SubmitSegmentDialog()
             submitSegmentDialog.arguments = buildSbBundleArgs() ?: return@setOnClickListener
-            submitSegmentDialog.show((context as BaseActivity).supportFragmentManager, null)
+            submitSegmentDialog.show(supportFragmentManager, null)
         }
 
         binding.dearrowSubmit.isVisible =
@@ -348,7 +349,7 @@ class CustomExoPlayerView(
         binding.dearrowSubmit.setOnClickListener {
             val submitDialog = SubmitDeArrowDialog()
             submitDialog.arguments = buildSbBundleArgs() ?: return@setOnClickListener
-            submitDialog.show((context as BaseActivity).supportFragmentManager, null)
+            submitDialog.show(supportFragmentManager, null)
         }
 
         binding.playPauseBTN.setOnClickListener {

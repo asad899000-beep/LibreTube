@@ -30,18 +30,21 @@ object PictureInPictureCompat {
         if (isPictureInPictureAvailable(activity)) {
             try {
                 activity.setPictureInPictureParams(params.toPictureInPictureParams())
-            } catch (e: IllegalStateException) {
+            } catch (e: Exception) {
                 // some devices claim to support PiP, but produce an exception when using PiP
                 // https://github.com/libre-tube/LibreTube/issues/8163
-                Log.e(TAG(), e.stackTraceToString())
-                activity.toastFromMainThread(e.localizedMessage.orEmpty())
+                Log.e(TAG(), "Error setting PiP params: $e")
             }
         }
     }
 
     fun enterPictureInPictureMode(activity: Activity, params: PictureInPictureParamsCompat) {
         if (isPictureInPictureAvailable(activity)) {
-            activity.enterPictureInPictureMode(params.toPictureInPictureParams())
+            try {
+                activity.enterPictureInPictureMode(params.toPictureInPictureParams())
+            } catch (e: Exception) {
+                Log.e(TAG(), "Failed to enter PiP mode", e)
+            }
         }
     }
 }

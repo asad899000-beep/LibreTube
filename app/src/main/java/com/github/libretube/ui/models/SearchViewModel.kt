@@ -11,6 +11,7 @@ import com.github.libretube.helpers.PreferenceHelper
 import com.github.libretube.obj.SearchDataItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -64,9 +65,13 @@ class SearchViewModel : ViewModel() {
                 return@combine emptyList<String>()
             }
             try {
-                MediaServiceRepository.instance.getSuggestions(query)
-            } catch (e: Exception) {
-                Log.e("failed to fetch suggestions", e.stackTraceToString())
+                withContext(Dispatchers.IO) {
+                    MediaServiceRepository.instance.getSuggestions(query)
+                }
+            } catch (c: kotlinx.coroutines.CancellationException) {
+                throw c
+            } catch (t: Throwable) {
+                Log.e("SearchViewModel", "failed to fetch suggestions: $t")
                 emptyList<String>()
             }
         }.mapLatest { SearchDataType.SUGGESTION to it }

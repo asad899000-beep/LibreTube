@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
 import com.github.libretube.databinding.SuggestionRowBinding
 import com.github.libretube.ui.adapters.callbacks.DiffUtilItemCallback
 import com.github.libretube.ui.viewholders.SuggestionsViewHolder
@@ -57,14 +58,17 @@ class SearchSuggestionsAdapter(
     }
 
     override fun onBindViewHolder(holder: SuggestionsViewHolder, position: Int) {
-        val item = getItem(holder.bindingAdapterPosition)
+        val item = getItem(position)
         val suggestion = item.query
 
         holder.binding.apply {
             when (item.type) {
                 SearchDataType.HISTORY -> {
                     deleteHistory.setOnClickListener {
-                        onSearchHistoryItemDeleted(SearchHistoryItem(suggestion))
+                        val pos = holder.bindingAdapterPosition
+                        if (pos != RecyclerView.NO_POSITION && pos < currentList.size) {
+                            onSearchHistoryItemDeleted(SearchHistoryItem(getItem(pos).query))
+                        }
                     }
                     suggestionText.setCompoundDrawablesRelativeWithIntrinsicBounds(
                         R.drawable.ic_history, 0, 0, 0
@@ -80,10 +84,16 @@ class SearchSuggestionsAdapter(
             deleteHistory.isVisible = item.type == SearchDataType.HISTORY
             suggestionText.text = suggestion
             root.setOnClickListener {
-                onRootClickListener(suggestion)
+                val pos = holder.bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION && pos < currentList.size) {
+                    onRootClickListener(getItem(pos).query)
+                }
             }
             arrow.setOnClickListener {
-                onArrowClickListener(suggestion)
+                val pos = holder.bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION && pos < currentList.size) {
+                    onArrowClickListener(getItem(pos).query)
+                }
             }
         }
     }
